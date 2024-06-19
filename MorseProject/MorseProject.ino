@@ -1,13 +1,17 @@
 #include <LiquidCrystal.h>
 
-LiquidCrystal lcd(12,11,5,4,3,8);
+LiquidCrystal lcd(12,11,5,4,10,8);
 const int shortDuration = 200;
 const int longDuration = 500;
 const int buttonPin = 7;
-const int backspacePin = 2;
+const int backspacePin = 3;
+const int translationPin = 2;
 const int buzzerPin = 9;
 volatile int cursorX = 0;
 volatile int cursorY = 0;
+const int maxLength = 6;
+volatile char inputSeq[maxLength] = "******";
+volatile int index = 0;
 
 
 char* letters[] = {
@@ -17,18 +21,20 @@ char* letters[] = {
 };
 char* numbers[] = {
   "-----", ".----", "..---", "...--", "....-", ".....", "-....", "--...", "---..", "----."};
+
 void setup() {
+  pinMode(translationPin,INPUT);
   pinMode(buttonPin,INPUT);
   pinMode(backspacePin,INPUT);
   pinMode(buzzerPin,OUTPUT);
-  attachInterrupt(0,backSpace,RISING);
+  attachInterrupt(1,backSpace,RISING);
+  attachInterrupt(0,translate,RISING);
   Serial.begin(9600);
   lcd.begin(16,2);
   lcd.clear();
   lcd.home();
   lcd.leftToRight();
   lcd.cursor();
-
 }
 
 void loop() {
@@ -39,21 +45,15 @@ void loop() {
   }
   long pressDuration = pulseIn(7,LOW,30000000/*30 sec*/)/1000;
   if(pressDuration < shortDuration &&  pressDuration > 20){
-      tone(9,500,shortDuration);//Serial.println("short");//
-      lcd.write('.');
-      cursorX++;
-      Serial.print(".");
+    tone(buzzerPin,500,shortDuration);
+    publish('.');
   }
   else if(pressDuration < longDuration){
-    tone(9,500,longDuration);//Serial.println("long");//
-    lcd.write('-');
-    cursorX++;
-    Serial.print("-");
+    tone(buzzerPin,500,longDuration);
+    publish('-');
   }
   else{
-    lcd.write(' ');
-    cursorX++;
-    Serial.print(" ");
+    publish(' ');
   }
 
   if(Serial.available()>0 && Serial.read()=='#'){
@@ -62,13 +62,13 @@ void loop() {
     cursorX=0;
     cursorY=0;
   }
-  if(Serial.available()>0 && Serial.read() == '/'){
-    cursorX=0;
-    cursorY=1;
-  }
-  
 }
 
+void removePlaces(int n){
+  for(int i=0;i<n;i++){
+    backSpace();
+  }
+}
 void backSpace(){
   Serial.println("back");
   if(cursorX==0&&cursorY==1){
@@ -77,12 +77,60 @@ void backSpace(){
     cursorY=0;
     lcd.setCursor(cursorX,cursorY);
   }
-  else if(cursorX>0){
+  else if (cursorX>0){
     cursorX--;
     lcd.setCursor(cursorX,cursorY);
     lcd.write(' ');
     lcd.setCursor(cursorX,cursorY);
   }
+  index--;
+}
+
+void addChar(char c){
+  inputSeq[index]=c;
+  index++;
+}
+
+void resetInput(){
+  for(int i=0;i<maxLength;i++){
+    inputSeq[i]='*';
+  }
+  index=0;
+}
+
+
+void publish(char c){
+  lcd.write(c);
+  Serial.print(c);
+  cursorX++;
+  if(c!=' '){
+    addChar(c);
+  }
+  else{
+    resetInput();
+  }
+}
+
+void translate(){
+  char ts='?';
+  char real[index];
+  for(int i=0;i<index;i++){
+    real[i]=inputSeq[i];
+  }
+  for(int i=0;i<26;i++){
+    if(strcmp(letters[i],real)==0){
+      ts=(char)(i+97);
+      break;
+    }
+    else if(i<=9&&strcmp(numbers[i],real)==0){
+      ts=(char)i;
+      break;
+    }
+  }
+  removePlaces(index);
+  publish(ts);
+  resetInput();
+
 }
 
 
