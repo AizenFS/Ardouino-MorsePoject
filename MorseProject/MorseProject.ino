@@ -22,6 +22,47 @@ char* letters[] = {
 char* numbers[] = {
   "-----", ".----", "..---", "...--", "....-", ".....", "-....", "--...", "---..", "----."};
 
+void backSpace(){//interrupt pin 3
+  //Serial.println("back");
+  if(cursorX==0&&cursorY==1){
+    lcd.write(' ');
+    cursorX=15;
+    cursorY=0;
+    lcd.setCursor(cursorX,cursorY);
+  }
+  else if (cursorX>0){
+    cursorX--;
+    lcd.setCursor(cursorX,cursorY);
+    lcd.write(' ');
+    lcd.setCursor(cursorX,cursorY);
+  }
+  if(index>0){
+    index--; 
+  }
+}
+
+void translate(){//interrupt pin 2
+  char ts='?';
+  char real[index];
+  for(int i=0;i<index;i++){
+    real[i]=inputSeq[i];
+  }
+  for(int i=0;i<26;i++){
+    if(strcmp(letters[i],real)==0){
+      ts=(char)(i+97);
+      break;
+    }
+    if(i<=9&&strcmp(numbers[i],real)==0){
+      ts=(char)(i+48);
+      break;
+    }
+  }
+  removePlaces(index);
+  publish(ts);
+  resetInput();
+
+}
+
 void setup() {
   pinMode(translationPin,INPUT);
   pinMode(buttonPin,INPUT);
@@ -64,26 +105,22 @@ void loop() {
   }
 }
 
+void publish(char c){
+  lcd.write(c);
+  Serial.print(c);
+  cursorX++;
+  if(c!=' '){
+    addChar(c);
+  }
+  else{
+    resetInput();
+  }
+}
+
 void removePlaces(int n){
   for(int i=0;i<n;i++){
     backSpace();
   }
-}
-void backSpace(){
-  Serial.println("back");
-  if(cursorX==0&&cursorY==1){
-    lcd.write(' ');
-    cursorX=15;
-    cursorY=0;
-    lcd.setCursor(cursorX,cursorY);
-  }
-  else if (cursorX>0){
-    cursorX--;
-    lcd.setCursor(cursorX,cursorY);
-    lcd.write(' ');
-    lcd.setCursor(cursorX,cursorY);
-  }
-  index--;
 }
 
 void addChar(char c){
@@ -99,39 +136,7 @@ void resetInput(){
 }
 
 
-void publish(char c){
-  lcd.write(c);
-  Serial.print(c);
-  cursorX++;
-  if(c!=' '){
-    addChar(c);
-  }
-  else{
-    resetInput();
-  }
-}
 
-void translate(){
-  char ts='?';
-  char real[index];
-  for(int i=0;i<index;i++){
-    real[i]=inputSeq[i];
-  }
-  for(int i=0;i<26;i++){
-    if(strcmp(letters[i],real)==0){
-      ts=(char)(i+97);
-      break;
-    }
-    else if(i<=9&&strcmp(numbers[i],real)==0){
-      ts=(char)i;
-      break;
-    }
-  }
-  removePlaces(index);
-  publish(ts);
-  resetInput();
-
-}
 
 
 
